@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tapsagoi FC Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f2f2f2;
+    }
+    header {
+      background: #007bff;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    nav {
+      display: flex;
+      justify-content: space-around;
+      background: #0056b3;
+      padding: 1rem;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    section {
+      padding: 2rem;
+      display: none;
+    }
+    section.active {
+      display: block;
+    }
+    .video-container video {
+      width: 100%;
+      max-width: 600px;
+      border: 2px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tapsagoi FC Dashboard</h1>
+  </header>
+  <nav>
+    <a href="#" onclick="showSection('updates')">Updates</a>
+    <a href="#" onclick="showSection('fixtures')">Fixtures</a>
+    <a href="#" onclick="showSection('players')">Players</a>
+    <a href="#" onclick="showSection('league-table')">League Table</a>
+    <a href="#" onclick="showSection('live-recording')">Live Recording</a>
+  </nav>
+  <main>
+    <section id="updates" class="active">
+      <h2>Latest Updates</h2>
+      <p>News and announcements will appear here.</p>
+    </section>
+    <section id="fixtures">
+      <h2>Upcoming Fixtures</h2>
+      <p>Match schedules will appear here.</p>
+    </section>
+    <section id="players">
+      <h2>Team Players</h2>
+      <p>Player profiles and stats will appear here.</p>
+    </section>
+    <section id="league-table">
+      <h2>League Table</h2>
+      <p>Current standings will appear here.</p>
+    </section>
+    <section id="live-recording">
+      <h2>Live Match Recording</h2>
+      <div class="video-container">
+        <video id="liveVideo" controls autoplay></video>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function showSection(id) {
+      document.querySelectorAll("main section").forEach(section => {
+        section.classList.remove("active");
+      });
+      document.getElementById(id).classList.add("active");
+    }
+
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        document.getElementById('liveVideo').srcObject = stream;
+      } catch (error) {
+        alert('Could not access camera: ' + error.message);
+      }
+    }
+
+    window.onload = initCamera;
+  </script>
+</body>
+</html>
