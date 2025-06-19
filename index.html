@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Our Family</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:0;background:#f4f4f4;}
+  header{background:#007bff;color:#fff;padding:1rem;text-align:center;}
+  nav{background:#333;overflow:hidden;display:flex;flex-wrap:wrap;}
+  nav button{background:#333;color:#fff;padding:14px 20px;border:none;cursor:pointer;font-size:16px;flex-grow:1;}
+  nav button:hover{background:#555;}
+  section{display:none;padding:20px;}
+  .active{display:block;}
+  .hidden{display:none!important;}
+  table{width:100%;border-collapse:collapse;margin-bottom:15px;}
+  table,th,td{border:1px solid #ccc;}
+  th,td{padding:10px;text-align:center;}
+  input[type="text"], input[type="tel"], input[type="date"], .member input{width:95%;border:none;border-bottom:1px solid #999;}
+  .add-btn,.del-btn{margin-top:5px;padding:4px 8px;font-size:12px;cursor:pointer;}
+  .add-btn{background:green;color:#fff;border:none;}
+  .del-btn{background:red;color:#fff;border:none;}
+  #loginUI{max-width:300px;margin:40px auto;padding:20px;background:#fff;border-radius:8px;text-align:center;}
+  #loginUI input{width:90%;margin-bottom:10px;padding:8px;}
+  #loginUI button{width:95%;padding:10px;background:#007bff;color:#fff;border:none;}
+  .tree-layout{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;}
+  .tree-person{background:#fff;padding:10px;border-radius:10px;min-width:250px;box-shadow:0 0 5px rgba(0,0,0,0.1);border: 2px solid #007bff;}
+  .tree-person h4{text-align:center;margin-bottom:10px;color:#007bff;font-size:18px;}
+  .tree-person table{width:100%;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+<header>
+  <h1 contenteditable="true">Welcome to Our Family</h1>
+</header>
+<div id="loginUI">
+  <h2>Login</h2>
+  <input type="email" id="loginEmail" placeholder="Email" /><br>
+  <input type="password" id="loginPassword" placeholder="Password" /><br>
+  <button onclick="login()">Login</button>
+  <hr>
+  <h3>Register</h3>
+  <input type="email" id="registerEmail" placeholder="Email" /><br>
+  <input type="password" id="registerPassword" placeholder="Password" /><br>
+  <button onclick="register()">Register</button>
+</div>
+
+<nav id="navBar" class="hidden">
+  <button onclick="showSection('tree')">Family Tree</button>
+  <button onclick="showSection('members')">Members Info</button>
+  <button onclick="showSection('birthdays')">Upcoming Birthdays</button>
+  <button onclick="showSection('events')">Upcoming Events</button>
+  <button onclick="showSection('chat')">Chat</button>
+  <button onclick="logout()">Logout</button>
+</nav>
+
+<section id="tree" class="active">
+  <h2 contenteditable="true">Family Tree</h2>
+  <label>Grandfather Name: <input type="text" id="grandFather" placeholder="Grandfather Name"></label><br><br>
+  <label>Grandmother Name: <input type="text" id="grandMother" placeholder="Grandmother Name"></label>
+  <div class="tree-layout" id="treeLayout"></div>
+  <button class="add-btn" onclick="saveTreeInfo()">Save Tree</button>
+</section>
+
+<section id="members">
+  <h2 contenteditable="true">Members Info</h2>
+  <table id="membersTable">
+    <tr>
+      <th>Name</th>
+      <th>Phone Number</th>
+      <th>Birthday</th>
+      <th>Actions</th>
+    </tr>
+  </table>
+  <button class="add-btn" onclick="addMemberRow()">+ Add Member</button>
+</section>
+
+<section id="birthdays">
+  <h2 contenteditable="true">Upcoming Birthdays</h2>
+  <ul id="birthdaysList"></ul>
+</section>
+
+<section id="events">
+  <h2 contenteditable="true">Upcoming Events</h2>
+  <p contenteditable="true">Coming soon...</p>
+</section>
+
+<section id="chat">
+  <h2 contenteditable="true">Family Chat Board</h2>
+  <div id="chatBox" style="background:#fff;padding:10px;height:300px;overflow-y:auto;border:1px solid #ccc;margin-bottom:10px;"></div>
+  <input type="text" id="chatInput" placeholder="Type your message here..." style="width:80%;padding:10px;">
+  <button onclick="sendMessage()">Send</button>
+</section>
+
+<script>
+const firebaseConfig = {apiKey:"AIzaSyDSncLCcdRFsOvgceHWcF6KpRSrPN12iRw",authDomain:"manifest-space-461012-u8.firebaseapp.com",projectId:"manifest-space-461012-u8",storageBucket:"manifest-space-461012-u8.appspot.com",messagingSenderId:"291434274253",appId:"1:291434274253:web:ab6df800e67e7755d53884",measurementId:"G-FWYZ0BRE4F"};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById("loginUI").classList.add("hidden");
+    document.getElementById("navBar").classList.remove("hidden");
+    showSection('tree');
+    renderTree();
+    loadSavedTree();
+    loadChat();
+    loadMembers();
+  } else {
+    document.getElementById("loginUI").classList.remove("hidden");
+    document.getElementById("navBar").classList.add("hidden");
+  }
+});
+
+function login() {
+  const email = document.getElementById("loginEmail").value;
+  const password = document.getElementById("loginPassword").value;
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => alert("Login successful"))
+    .catch(error => alert("Login error: " + error.message));
+}
+
+function register() {
+  const email = document.getElementById("registerEmail").value;
+  const password = document.getElementById("registerPassword").value;
+  auth.createUserWithEmailAndPassword(email, password)
+    .then(() => alert("Registration successful"))
+    .catch(error => alert("Registration error: " + error.message));
+}
+
+function logout() {
+  auth.signOut().then(() => alert("Logged out."));
+}
+
+function showSection(id) {
+  document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function renderTree() {
+  const container = document.getElementById("treeLayout");
+  container.innerHTML = "";
+  for (let i = 0; i < 9; i++) {
+    const div = document.createElement("div");
+    div.className = "tree-person";
+    div.innerHTML = `
+      <h4 contenteditable='true'>Child ${i+1}</h4>
+      <table id='daughtersTable${i}'>
+        <tr><th>Daughter Name</th><th>Action</th></tr>
+      </table>
+      <button class='add-btn' onclick='addDaughter(${i})'>+ Add Daughter</button>
+    `;
+    container.appendChild(div);
+  }
+}
+
+function addDaughter(idx) {
+  const table = document.getElementById('daughtersTable'+idx);
+  const row = table.insertRow();
+  row.innerHTML = `<td><input type='text' placeholder='Daughter Name'></td><td><button class='del-btn' onclick='this.closest("tr").remove()'>Delete</button></td>`;
+}
+
+function saveTreeInfo() {
+  const grandFather = document.getElementById('grandFather').value;
+  const grandMother = document.getElementById('grandMother').value;
+  const children = [];
+  for (let i = 0; i < 9; i++) {
+    const childName = document.querySelector(`#daughtersTable${i}`).parentElement.querySelector('h4').innerText;
+    const daughters = Array.from(document.querySelectorAll(`#daughtersTable${i} input`)).map(input => input.value.trim()).filter(Boolean);
+    children.push({childName, daughters});
+  }
+  db.collection('tree').doc('info').set({grandFather, grandMother, children});
+  alert('Tree saved');
+}
+
+function loadSavedTree() {
+  db.collection('tree').doc('info').get().then(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      document.getElementById('grandFather').value = data.grandFather || "";
+      document.getElementById('grandMother').value = data.grandMother || "";
+      renderTree();
+      if (data.children) {
+        data.children.forEach((child, i) => {
+          const h4 = document.querySelector(`#daughtersTable${i}`).parentElement.querySelector('h4');
+          if (h4 && child.childName) h4.innerText = child.childName;
+          if (child.daughters && Array.isArray(child.daughters)) {
+            child.daughters.forEach(name => addDaughterWithName(i, name));
+          }
+        });
+      }
+    }
+  });
+}
+
+function addDaughterWithName(idx, name) {
+  const table = document.getElementById('daughtersTable'+idx);
+  const row = table.insertRow();
+  row.innerHTML = `<td><input type='text' value="${name}"></td><td><button class='del-btn' onclick='this.closest("tr").remove()'>Delete</button></td>`;
+}
+
+function addMemberRow(name = '', phone = '', birthday = '') {
+  const table = document.getElementById("membersTable");
+  const row = table.insertRow();
+  row.innerHTML = `
+    <td><input type="text" value="${name}"></td>
+    <td><input type="tel" value="${phone}"></td>
+    <td><input type="date" value="${birthday}"></td>
+    <td><button class="del-btn" onclick="this.closest('tr').remove()">Delete</button></td>
+  `;
+}
+
+function loadMembers() {
+  const table = document.getElementById("membersTable");
+  while (table.rows.length > 1) table.deleteRow(1);
+  db.collection("members").get().then(snapshot => {
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      addMemberRow(data.name, data.phone, data.birthday);
+    });
+  });
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  const user = auth.currentUser;
+  if (message && user) {
+    db.collection('chat').add({
+      name: user.email,
+      text: message,
+      time: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    input.value = '';
+  }
+}
+
+function loadChat() {
+  const box = document.getElementById('chatBox');
+  db.collection('chat').orderBy('time').onSnapshot(snapshot => {
+    box.innerHTML = '';
+    snapshot.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const msg = change.doc.data();
+        const p = document.createElement('p');
+        const timestamp = msg.time?.toDate().toLocaleTimeString() || '';
+        p.innerHTML = `<b>${msg.name}</b> <small>${timestamp}</small>: ${msg.text}`;
+        box.appendChild(p);
+      }
+    });
+    box.scrollTop = box.scrollHeight;
+  });
+}
+</script>
+</body>
+</html>
